@@ -19,19 +19,28 @@ static const float kPi_f      = float(M_PI);
 static const float k1Div180_f = 1.0f / 180.0f;
 static const float kRadians   = k1Div180_f * kPi_f;
 
+static const int kNumParticles = 100;
+
 float radians(const float& degrees) {
   return kRadians * degrees;
 }
+
+typedef struct {
+  simd::float3 position;
+} Particle;
 
 @implementation ViewController {
   id <MTLDevice> device;
   id<MTLCommandQueue> commandQueue;
   id<MTLRenderPipelineState> pipeline;
   id <MTLBuffer> vertexBuffer;
-  id <MTLBuffer> uniformBuffer;
+  id <MTLBuffer> uniformConstantBuffer;
+  id <MTLBuffer> particleConstantBuffer;
   CAMetalLayer* metalLayer;
   CADisplayLink* displayLink;
   dispatch_semaphore_t _inflight_semaphore;
+  
+  Particle particles[kNumParticles];
 }
 
 - (void)viewDidLoad {
@@ -77,14 +86,15 @@ float radians(const float& degrees) {
   
   vertexBuffer = [device newBufferWithBytes:vertexData length:sizeof(vertexData) options:MTLResourceOptionCPUCacheModeDefault];
   
-  { // Model Type Specific
-    Uniforms uniforms;
-    float aspect = fabsf(self.view.bounds.size.width / self.view.bounds.size.height);
-    uniforms.projectionMatrix = perspective_fov(65.0f * (M_PI / 180.0f), aspect, 0.1f, 100.0f);
-    uniforms.viewMatrix = matrix_identity_float4x4;
-    uniforms.viewMatrix.columns[3].z = 30.0f;
-    uniformBuffer = [device newBufferWithBytes:&uniforms length:sizeof(Uniforms) options:MTLResourceOptionCPUCacheModeDefault];
-  }
+  Uniforms uniforms;
+  float aspect = fabsf(self.view.bounds.size.width / self.view.bounds.size.height);
+  uniforms.projectionMatrix = perspective_fov(65.0f * (M_PI / 180.0f), aspect, 0.1f, 100.0f);
+  uniforms.viewMatrix = matrix_identity_float4x4;
+  uniforms.viewMatrix.columns[3].z = 30.0f;
+  uniformConstantBuffer = [device newBufferWithBytes:&uniforms length:sizeof(Uniforms) options:MTLResourceOptionCPUCacheModeDefault];
+
+  memset(particles, 0, sizeof(Particle) * kNumParticles);
+  particleConstantBuffer = [device newBufferWithLength:kNumParticles * sizeof(Particle) options:MTLResourceOptionCPUCacheModeDefault];
   
   [metalLayer setFrame:self.view.layer.frame];
   [self.view.layer addSublayer:metalLayer];
@@ -108,8 +118,9 @@ float radians(const float& degrees) {
     id <MTLRenderCommandEncoder> commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:renderPassDescriptor];
     [commandEncoder setRenderPipelineState:pipeline];
     [commandEncoder setVertexBuffer:vertexBuffer offset:0 atIndex:0];
-    [commandEncoder setVertexBuffer:uniformBuffer offset:0 atIndex:1];
-    [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:6 instanceCount:10];
+    [commandEncoder setVertexBuffer:uniformConstantBuffer offset:0 atIndex:1];
+    [commandEncoder setVertexBuffer:particleConstantBuffer offset:0 atIndex:2];
+    [commandEncoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:6 instanceCount:kNumParticles];
     [commandEncoder endEncoding];
   }
   
@@ -130,7 +141,18 @@ float radians(const float& degrees) {
 }
 
 - (void)displayLink:(CADisplayLink *)displayLink {
+  [self update];
   [self render];
+}
+
+- (void)update {
+  for (int i = 0; i < kNumParticles; i++) {
+    particles[i].position.x += ((rand() % 10) - 5) * 0.01f;;
+    particles[i].position.y += ((rand() % 10) - 5) * 0.01f;;
+  }
+  
+  uint8_t *bufferPointer = (uint8_t *)[particleConstantBuffer contents];
+  memcpy(bufferPointer, particles, sizeof(Particle) * kNumParticles);
 }
 
 static matrix_float4x4 perspective_fov(const float fovY, const float aspect, const float nearZ, const float farZ) {
@@ -144,7 +166,7 @@ static matrix_float4x4 perspective_fov(const float fovY, const float aspect, con
       .columns[2] = { 0.0f, 0.0f, q, 1.0f },
       .columns[3] = { 0.0f, 0.0f, q * -nearZ, 0.0f }
     };
-
+  
     return m;
 }
 
