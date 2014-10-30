@@ -14,6 +14,11 @@
 		4CD00A361A0166C700281C86 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 4CD00A351A0166C700281C86 /* Images.xcassets */; };
 		4CD00A391A0166C700281C86 /* LaunchScreen.xib in Resources */ = {isa = PBXBuildFile; fileRef = 4CD00A371A0166C700281C86 /* LaunchScreen.xib */; };
 		4CD00A451A0166C700281C86 /* ParticlesTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 4CD00A441A0166C700281C86 /* ParticlesTests.m */; };
+		4CD00A4F1A01676500281C86 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4CD00A4E1A01676500281C86 /* Metal.framework */; };
+		4CD00A511A0168A000281C86 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4CD00A501A0168A000281C86 /* QuartzCore.framework */; };
+		4CD00A531A0168BD00281C86 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4CD00A521A0168BD00281C86 /* Foundation.framework */; };
+		4CD00A551A0168C200281C86 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4CD00A541A0168C200281C86 /* UIKit.framework */; };
+		4CD00A571A01930400281C86 /* Projection.metal in Sources */ = {isa = PBXBuildFile; fileRef = 4CD00A561A01930400281C86 /* Projection.metal */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -40,6 +45,12 @@
 		4CD00A3E1A0166C700281C86 /* ParticlesTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ParticlesTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		4CD00A431A0166C700281C86 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		4CD00A441A0166C700281C86 /* ParticlesTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ParticlesTests.m; sourceTree = "<group>"; };
+		4CD00A4E1A01676500281C86 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
+		4CD00A501A0168A000281C86 /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
+		4CD00A521A0168BD00281C86 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
+		4CD00A541A0168C200281C86 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
+		4CD00A561A01930400281C86 /* Projection.metal */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.metal; path = Projection.metal; sourceTree = "<group>"; };
+		4CD00A581A02242600281C86 /* Uniforms.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Uniforms.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -47,6 +58,10 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				4CD00A551A0168C200281C86 /* UIKit.framework in Frameworks */,
+				4CD00A531A0168BD00281C86 /* Foundation.framework in Frameworks */,
+				4CD00A511A0168A000281C86 /* QuartzCore.framework in Frameworks */,
+				4CD00A4F1A01676500281C86 /* Metal.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -89,6 +104,8 @@
 				4CD00A351A0166C700281C86 /* Images.xcassets */,
 				4CD00A371A0166C700281C86 /* LaunchScreen.xib */,
 				4CD00A281A0166C700281C86 /* Supporting Files */,
+				4CD00A561A01930400281C86 /* Projection.metal */,
+				4CD00A581A02242600281C86 /* Uniforms.h */,
 			);
 			path = Particles;
 			sourceTree = "<group>";
@@ -96,6 +113,10 @@
 		4CD00A281A0166C700281C86 /* Supporting Files */ = {
 			isa = PBXGroup;
 			children = (
+				4CD00A541A0168C200281C86 /* UIKit.framework */,
+				4CD00A521A0168BD00281C86 /* Foundation.framework */,
+				4CD00A501A0168A000281C86 /* QuartzCore.framework */,
+				4CD00A4E1A01676500281C86 /* Metal.framework */,
 				4CD00A291A0166C700281C86 /* Info.plist */,
 				4CD00A2A1A0166C700281C86 /* main.m */,
 			);
@@ -221,6 +242,7 @@
 			files = (
 				4CD00A311A0166C700281C86 /* ViewController.mm in Sources */,
 				4CD00A2E1A0166C700281C86 /* AppDelegate.m in Sources */,
+				4CD00A571A01930400281C86 /* Projection.metal in Sources */,
 				4CD00A2B1A0166C700281C86 /* main.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
