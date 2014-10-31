@@ -1,14 +1,12 @@
 #include <metal_stdlib>
 #include "Uniforms.h"
+#include "Particle.h"
 
 using namespace metal;
 
 struct VertexInOut {
   float4 position [[position]];
-};
-
-struct Particle {
-  float3 position;
+  float alpha;
 };
 
 vertex VertexInOut passThroughVertex(unsigned int             vid       [[vertex_id  ]],
@@ -26,9 +24,11 @@ vertex VertexInOut passThroughVertex(unsigned int             vid       [[vertex
   float4 in_position = v_position + float4(particle.position, 0.0f);
   outVertex.position = uniforms.projectionMatrix * uniforms.viewMatrix * in_position;
   
+  outVertex.alpha = particle.life;
+  
   return outVertex;
 };
 
 fragment half4 passThroughFragment(VertexInOut inFrag [[stage_in]]) {
-  return half4(1.0, 0.3f, 0.7f, 1.0f);
+  return half4(1.0, 0.0f, 0.0f, inFrag.alpha);
 };

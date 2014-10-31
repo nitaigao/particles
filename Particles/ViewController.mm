@@ -4,7 +4,9 @@
 #import <QuartzCore/CAMetalLayer.h>
 #import <simd/matrix.h>
 #import <simd/matrix_types.h>
+#import "MetalView.h"
 #import "Uniforms.h"
+#import "Particle.h"
 
 float vertexData[] = {
  -1.0, -1.0, 0.0, 1.0,
@@ -19,25 +21,20 @@ static const float kPi_f      = float(M_PI);
 static const float k1Div180_f = 1.0f / 180.0f;
 static const float kRadians   = k1Div180_f * kPi_f;
 
-static const int kNumParticles = 100;
+static const int kNumParticles = 10000;
 
 float radians(const float& degrees) {
   return kRadians * degrees;
 }
 
-typedef struct {
-  simd::float3 position;
-} Particle;
-
 @implementation ViewController {
   id <MTLDevice> device;
+  CAMetalLayer* layer;
   id<MTLCommandQueue> commandQueue;
   id<MTLRenderPipelineState> pipeline;
   id <MTLBuffer> vertexBuffer;
   id <MTLBuffer> uniformConstantBuffer;
   id <MTLBuffer> particleConstantBuffer;
-  CAMetalLayer* metalLayer;
-  CADisplayLink* displayLink;
   dispatch_semaphore_t _inflight_semaphore;
   
   Particle particles[kNumParticles];
@@ -47,31 +44,12 @@ typedef struct {
   [self setupMetal];
 }
 
-- (void)resize {
-  if (self.view.window == nil) {
-    return;
-  }
-  
-  float nativeScale = self.view.window.screen.nativeScale;
-  self.view.contentScaleFactor = nativeScale;
-  metalLayer.frame = self.view.layer.frame;
-  
-  CGSize drawableSize = self.view.bounds.size;
-  drawableSize.width = drawableSize.width * CGFloat(self.view.contentScaleFactor);
-  drawableSize.height = drawableSize.height * CGFloat(self.view.contentScaleFactor);
-  
-  metalLayer.drawableSize = drawableSize;
-}
-
 - (void)setupMetal {
   _inflight_semaphore = dispatch_semaphore_create(3);
   
-  device = MTLCreateSystemDefaultDevice();
-  
-  metalLayer = [CAMetalLayer layer];
-  metalLayer.device = device;
-  metalLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
-  metalLayer.framebufferOnly = YES;
+  MetalView* metalView = (MetalView*)self.view;
+  device = metalView.metalDevice;
+  layer = metalView.metalLayer;
   
   commandQueue = [device newCommandQueue];
   
@@ -80,24 +58,51 @@ typedef struct {
   MTLRenderPipelineDescriptor* pipeLineDescriptor = [MTLRenderPipelineDescriptor new];
   pipeLineDescriptor.vertexFunction = [library newFunctionWithName:@"passThroughVertex"];
   pipeLineDescriptor.fragmentFunction = [library newFunctionWithName:@"passThroughFragment"];
-  pipeLineDescriptor.colorAttachments[0].pixelFormat = metalLayer.pixelFormat;
+  pipeLineDescriptor.colorAttachments[0].pixelFormat = layer.pixelFormat;
+  pipeLineDescriptor.colorAttachments[0].blendingEnabled = YES;
   
+  pipeLineDescriptor.colorAttachments[0].sourceRGBBlendFactor = MTLBlendFactorSourceAlpha;
+  pipeLineDescriptor.colorAttachments[0].destinationRGBBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
+  pipeLineDescriptor.colorAttachments[0].alphaBlendOperation = MTLBlendOperationAdd;
+
+  
+  pipeLineDescriptor.colorAttachments[0].sourceAlphaBlendFactor = MTLBlendFactorSourceAlpha;
+  pipeLineDescriptor.colorAttachments[0].destinationAlphaBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
+  pipeLineDescriptor.colorAttachments[0].alphaBlendOperation = MTLBlendOperationAdd;
   pipeline = [device newRenderPipelineStateWithDescriptor:pipeLineDescriptor error:nil];
   
   vertexBuffer = [device newBufferWithBytes:vertexData length:sizeof(vertexData) options:MTLResourceOptionCPUCacheModeDefault];
   
-  Uniforms uniforms;
-  float aspect = fabsf(self.view.bounds.size.width / self.view.bounds.size.height);
-  uniforms.projectionMatrix = perspective_fov(65.0f * (M_PI / 180.0f), aspect, 0.1f, 100.0f);
-  uniforms.viewMatrix = matrix_identity_float4x4;
-  uniforms.viewMatrix.columns[3].z = 30.0f;
-  uniformConstantBuffer = [device newBufferWithBytes:&uniforms length:sizeof(Uniforms) options:MTLResourceOptionCPUCacheModeDefault];
+  uniformConstantBuffer = [device newBufferWithLength:sizeof(Uniforms) options:MTLResourceOptionCPUCacheModeDefault];
 
   memset(particles, 0, sizeof(Particle) * kNumParticles);
-  particleConstantBuffer = [device newBufferWithLength:kNumParticles * sizeof(Particle) options:MTLResourceOptionCPUCacheModeDefault];
   
-  [metalLayer setFrame:self.view.layer.frame];
-  [self.view.layer addSublayer:metalLayer];
+  for (int i = 0; i < kNumParticles; i++) {
+    float angle = 2 * (rand() / (float)RAND_MAX) - 1.0f;
+    
+    simd::float2x2 rotation = {
+      simd::float2 { simd::cos(angle), -simd::sin(angle) },
+      simd::float2 { simd::sin(angle), simd::cos(angle) }
+    };
+    
+    simd::float2 direction = { 0.0f, 1.0f };
+    simd::float2 rotatedDirection = direction * rotation;
+    
+    particles[i].direction.xy = rotatedDirection;
+//    particles[i].life = (rand() % 5);
+    particles[i].speed = (rand() % 20);
+  }
+  
+  particleConstantBuffer = [device newBufferWithLength:kNumParticles * sizeof(Particle) options:MTLResourceOptionCPUCacheModeDefault];
+}
+
+- (void)setUniforms:(matrix_float4x4)perspective view:(matrix_float4x4)view {
+  Uniforms uniforms;
+  uniforms.projectionMatrix = perspective;
+  uniforms.viewMatrix = view;
+  
+  uint8_t *bufferPointer = (uint8_t *)[uniformConstantBuffer contents];
+  memcpy(bufferPointer, &uniforms, sizeof(Uniforms));
 }
 
 - (void)render {
@@ -105,7 +110,7 @@ typedef struct {
   
   id<MTLCommandBuffer> commandBuffer = [commandQueue commandBuffer];
   
-  id<CAMetalDrawable> drawable = [metalLayer nextDrawable];
+  id<CAMetalDrawable> drawable = [layer nextDrawable];
   id<MTLTexture> texture = drawable.texture;
   
   MTLRenderPassDescriptor *renderPassDescriptor = [MTLRenderPassDescriptor new];
@@ -136,21 +141,66 @@ typedef struct {
 
 - (void)viewDidAppear:(BOOL)animated {
   [super viewDidAppear:animated];
-  displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(displayLink:)];
+  CADisplayLink* displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(displayLink:)];
   [displayLink addToRunLoop:[NSRunLoop mainRunLoop] forMode:NSDefaultRunLoopMode];
+  
+  dispatch_async( dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+    while (true) {
+      [self update:0.016f];
+      [NSThread sleepForTimeInterval:0.016f];
+    }
+  } );
 }
 
+double frameTimeStamp = 0;
+
 - (void)displayLink:(CADisplayLink *)displayLink {
-  [self update];
+  double currentTime = displayLink.timestamp;
+  
+  if (frameTimeStamp <= 0) {
+    frameTimeStamp = currentTime;
+  }
+  
+  float dt = currentTime - frameTimeStamp;
+  frameTimeStamp = currentTime;
+  
+  float fps = 1.0f / dt;
+  fpsLabel.text = [NSString stringWithFormat:@"%d fps", (int)std::round(fps)];
+//  [self update:dt];
+  
+  float aspect = fabsf(self.view.bounds.size.width / self.view.bounds.size.height);
+  matrix_float4x4 perspective = perspective_fov(65.0f * (M_PI / 180.0f), aspect, 0.1f, 100.0f);
+  
+  matrix_float4x4 view = matrix_identity_float4x4;
+  view.columns[3].z = 30.0f;
+  
+  [self setUniforms:perspective view:view];
   [self render];
 }
 
-- (void)update {
+- (void)update:(float)dt {
   for (int i = 0; i < kNumParticles; i++) {
-    particles[i].position.x += ((rand() % 10) - 5) * 0.01f;;
-    particles[i].position.y += ((rand() % 10) - 5) * 0.01f;;
+    particles[i].position = particles[i].position + particles[i].direction * particles[i].speed * dt;
+    
+    particles[i].life -= dt;
+    if (particles[i].life <= 0.0f) {
+      particles[i].life = 0.0f;
+    }
+    
+    if (particles[i].life <= 0.0f) {
+      particles[i].life = (rand() % 5);
+      particles[i].position = { 0, 0, 0 };
+    }
+
   }
   
+//  for (int i = 0; i < kNumParticles; i++) {
+//    if (particles[i].life <= 0.0f) {
+//      particles[i].life = (rand() % 5);
+//      particles[i].position = { 0, 0, 0 };
+//    }
+//  }
+
   uint8_t *bufferPointer = (uint8_t *)[particleConstantBuffer contents];
   memcpy(bufferPointer, particles, sizeof(Particle) * kNumParticles);
 }

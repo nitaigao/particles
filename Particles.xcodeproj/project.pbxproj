@@ -19,6 +19,7 @@
 		4CD00A531A0168BD00281C86 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4CD00A521A0168BD00281C86 /* Foundation.framework */; };
 		4CD00A551A0168C200281C86 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4CD00A541A0168C200281C86 /* UIKit.framework */; };
 		4CD00A571A01930400281C86 /* Projection.metal in Sources */ = {isa = PBXBuildFile; fileRef = 4CD00A561A01930400281C86 /* Projection.metal */; };
+		4CE7342A1A036B76004977D9 /* MetalView.mm in Sources */ = {isa = PBXBuildFile; fileRef = 4CE734291A036B76004977D9 /* MetalView.mm */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -51,6 +52,9 @@
 		4CD00A541A0168C200281C86 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
 		4CD00A561A01930400281C86 /* Projection.metal */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.metal; path = Projection.metal; sourceTree = "<group>"; };
 		4CD00A581A02242600281C86 /* Uniforms.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Uniforms.h; sourceTree = "<group>"; };
+		4CD00A591A02A94800281C86 /* Particle.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Particle.h; sourceTree = "<group>"; };
+		4CE734281A036B76004977D9 /* MetalView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MetalView.h; sourceTree = "<group>"; };
+		4CE734291A036B76004977D9 /* MetalView.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = MetalView.mm; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -106,6 +110,9 @@
 				4CD00A281A0166C700281C86 /* Supporting Files */,
 				4CD00A561A01930400281C86 /* Projection.metal */,
 				4CD00A581A02242600281C86 /* Uniforms.h */,
+				4CD00A591A02A94800281C86 /* Particle.h */,
+				4CE734281A036B76004977D9 /* MetalView.h */,
+				4CE734291A036B76004977D9 /* MetalView.mm */,
 			);
 			path = Particles;
 			sourceTree = "<group>";
@@ -244,6 +251,7 @@
 				4CD00A2E1A0166C700281C86 /* AppDelegate.m in Sources */,
 				4CD00A571A01930400281C86 /* Projection.metal in Sources */,
 				4CD00A2B1A0166C700281C86 /* main.m in Sources */,
+				4CE7342A1A036B76004977D9 /* MetalView.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -436,6 +444,7 @@
 				4CD00A4A1A0166C700281C86 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 		4CD00A4B1A0166C700281C86 /* Build configuration list for PBXNativeTarget "ParticlesTests" */ = {
 			isa = XCConfigurationList;
@@ -444,6 +453,7 @@
 				4CD00A4D1A0166C700281C86 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
