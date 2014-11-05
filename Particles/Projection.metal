@@ -9,8 +9,9 @@ struct VertexInOut {
   float alpha;
 };
 
-float rand(float2 co){
-  return fract(sin(dot(co.xy ,float2(12.9898,78.233))) * 43758.5453);
+float rand(float2 co);
+float rand(float2 co) {
+  return fract(sin(dot(co.xy, float2(12.9898,78.233))) * 43758.5453);
 }
 
 vertex VertexInOut passThroughVertex(  unsigned         int             vid                 [[vertex_id  ]]
@@ -23,9 +24,9 @@ vertex VertexInOut passThroughVertex(  unsigned         int             vid     
   float4 position = positions[vid];
   uint row = floor(iid / 32.0f);
   uint column = iid % 32;
-  float normFactor = 100.0f;
   
-  float2 offset = posSpeedLifeTexture.read(uint2(column, row)).xy * normFactor;
+  float2 offset = posSpeedLifeTexture.read(uint2(column, row)).xy;
+  
   float4 offsetPositon = position + float4(offset, 0.0f, 0.0f);
   outVertex.position = uniforms.viewProjMatrix * offsetPositon;
   
@@ -37,30 +38,44 @@ fragment half4 passThroughFragment(VertexInOut inFrag [[stage_in]] ) {
 };
 
 kernel void initParticles(  uint2                           gid                   [[thread_position_in_grid]]
+                          , uint                            tgi                   [[thread_index_in_threadgroup]]
                           , texture2d<float, access::write> posSpeedLifeTexture   [[texture(0)]]
-                          , texture2d<float, access::write> dirTexture            [[texture(1)]]) {
+                          , texture2d<float, access::write> dirTexture            [[texture(1)]]
+                          , texture2d<float, access::read>  randomTexture         [[texture(2)]]) {
+  float2 random = randomTexture.read(gid).xy;
   posSpeedLifeTexture.write(float4(0.0f, 0.0f, 1.0f, 1.0f), gid);
-//  float r = rand(float2(gid.x, gid.y));
-//  float2 dirUnorm = float2(r, r);
-  float2 dir = normalize(float2(gid));
-  dirTexture.write(float4(dir, 0.0f, 1.0f), gid);
+  dirTexture.write(float4(normalize(random), 0.0f, 1.0f), gid);
 };
 
 kernel void simulateParticles(  uint2                           gid                    [[thread_position_in_grid]]
                               , texture2d<float, access::read>  inPosSpeedLifeTexture  [[texture(0)]]
                               , texture2d<float, access::read>  inDirTexture           [[texture(1)]]
-                              , texture2d<float, access::write> outPosSpeedLifeTexture [[texture(2)]]) {
+                              , texture2d<float, access::read>  randomTexture          [[texture(2)]]
+                              , texture2d<float, access::write> outPosSpeedLifeTexture [[texture(3)]]
+                              , texture2d<float, access::write> outDirTexture          [[texture(4)]]) {
   float4 inPosSpeedLife = inPosSpeedLifeTexture.read(gid);
+  float2 inPos = inPosSpeedLife.xy;
 
-  float normFactor = 100.0f;
-  float2 inPos = inPosSpeedLife.xy * normFactor;
   float inSpeed = inPosSpeedLife.z;
   float inLife = inPosSpeedLife.w;
-
+  
   float2 inDir = inDirTexture.read(gid).xy;
+  float2 newPosition = inPos + inDir * inSpeed;
+  
+  float outLife = inLife - 0.016f;
+  float2 outDir = inDir;
+  
+  if (outLife <= 0.0f) {
+    float2 random = randomTexture.read(gid).xy;
+    newPosition = float2(0, 0);
+    outLife = 2 + rand(random);
+    float x = rand(random) * 2.0f - 1.0f;
+    float y = rand(1.0f - random) * 2.0f - 1.0f;
+    outDir = normalize(float2(x, y));
+  }
 
-  float2 newPosition = inPos + inDir;// * inSpeed * (inLife > 0.0f);
-  float4 outPosSpeedLife = float4(newPosition / normFactor, inSpeed, inLife);
-
+  float4 outPosSpeedLife = float4(newPosition, inSpeed, outLife);
   outPosSpeedLifeTexture.write(outPosSpeedLife, gid);
+  
+  outDirTexture.write(float4(outDir, 0.0f, 1.0f), gid);
 };

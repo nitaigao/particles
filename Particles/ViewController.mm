@@ -12,8 +12,6 @@ float vertexData[] = {
  -1.0, -1.0, 0.0, 1.0,
  -1.0,  1.0, 0.0, 1.0,
   1.0, -1.0, 0.0, 1.0,
-//  1.0, -1.0, 0.0, 1.0,
-// -1.0,  1.0, 0.0, 1.0,
   1.0,  1.0, 0.0, 1.0
 };
 
@@ -34,19 +32,13 @@ float radians(const float& degrees) {
   id<MTLCommandQueue> commandQueue;
   id<MTLRenderPipelineState> renderPipeline;
   
-//  id<MTLCommandQueue> computeCommandQueue;
-//  id<MTLComputePipelineState> particleSimulateComputePipeline;
-  
   id <MTLBuffer> vertexBuffer;
   id <MTLBuffer> uniformConstantBuffer;
   
   id <MTLTexture> particlePosSpeedLifeTexture;
-//  id <MTLTexture> particlePosSpeedLifeTexture2;
   id <MTLTexture> particleDirTexture;
-
-
+  id<MTLTexture> randomTexture;
   
-//  id <MTLBuffer> particleConstantBuffer;
   dispatch_semaphore_t _inflight_semaphore;
   
   id<MTLLibrary> library;
@@ -91,12 +83,6 @@ float radians(const float& degrees) {
   simulateParticlesComputePipeline = [device newComputePipelineStateWithFunction:simulateParticlesKernelFunction error:nil];
   
   
-//  id<MTLFunction> kernelFunction = [library newFunctionWithName:@"simulateParticles"];
-//  particleSimulateComputePipeline = [device newComputePipelineStateWithFunction:kernelFunction error:nil];
-  
-//  MTLComputePipelineDescriptor* computePipelineDescriptor = [MTLComputePipelineDescriptor new];
-//  computePipeline =
-  
   MTLRenderPipelineDescriptor* pipeLineDescriptor = [MTLRenderPipelineDescriptor new];
   pipeLineDescriptor.vertexFunction = [library newFunctionWithName:@"passThroughVertex"];
   pipeLineDescriptor.fragmentFunction = [library newFunctionWithName:@"passThroughFragment"];
@@ -118,39 +104,32 @@ float radians(const float& degrees) {
   static const int kMinBufferSize = 196;
   uniformConstantBuffer = [device newBufferWithLength:kMinBufferSize options:MTLResourceOptionCPUCacheModeDefault];
   
-//  int next = [self nearestPowerOf2:kNumParticles];
-//  NSUInteger textureSize = next / 2;
-  
   NSUInteger textureSize = 32;
 
-  MTLTextureDescriptor* particleDataTextureDescriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm width:textureSize height:textureSize mipmapped:NO];
+  MTLTextureDescriptor* particleDataTextureDescriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA16Float width:textureSize height:textureSize mipmapped:NO];
   particlePosSpeedLifeTexture = [device newTextureWithDescriptor:particleDataTextureDescriptor];
   
-//  MTLTextureDescriptor* particleDataTextureDescriptor2 = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm width:textureSize height:textureSize mipmapped:NO];
-//  particlePosSpeedLifeTexture2 = [device newTextureWithDescriptor:particleDataTextureDescriptor2];
-//  
-  MTLTextureDescriptor* particleDirTextureDescriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm width:textureSize height:textureSize mipmapped:NO];
+  MTLTextureDescriptor* particleDirTextureDescriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA16Float width:textureSize height:textureSize mipmapped:NO];
   particleDirTexture = [device newTextureWithDescriptor:particleDirTextureDescriptor];
-
+  
+  MTLTextureDescriptor* randomTextureDescriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA16Float width:textureSize height:textureSize mipmapped:NO];
+  randomTexture = [device newTextureWithDescriptor:randomTextureDescriptor];
+  
+  int textureWidth = 32;
+  int textureHeight = 32;
+  int textureArea = textureWidth * textureHeight;
+  vector_float4 randomBytes[textureArea];
+  for (int i = 0; i < textureArea; i++) {
+    randomBytes[i].x = (arc4random_uniform(100) / 100.0f) * 2.0f - 1.0f;
+    randomBytes[i].y = (arc4random_uniform(100) / 100.0f) * 2.0f - 1.0f;
+    randomBytes[i].z = (arc4random_uniform(100) / 100.0f) * 2.0f - 1.0f;
+    randomBytes[i].w = 1.0f;
+//    NSLog(@"%f %f", randomBytes[i].x, randomBytes[i].y);
+  }
+  
+  [randomTexture replaceRegion:MTLRegionMake2D(0, 0, textureWidth, textureHeight) mipmapLevel:0 withBytes:randomBytes bytesPerRow:textureWidth * sizeof(vector_float4)];
+  
   [self initParticles];
-  
-//  for (int i = 0; i < kNumParticles; i++) {
-//    float angle = (2 * (rand() / (float)RAND_MAX) - 1.0f) * 1.0f;//3.141;
-//    
-//    simd::float2x2 rotation = {
-//      simd::float2 { simd::cos(angle), -simd::sin(angle) },
-//      simd::float2 { simd::sin(angle), simd::cos(angle) }
-//    };
-//    
-//    simd::float2 direction = { 0.0f, 1.0f };
-//    simd::float2 rotatedDirection = direction * rotation;
-//    
-//    particles[i].direction.xy = rotatedDirection;
-//    particles[i].life = 0;//(rand() % 5);
-//    particles[i].speed = arc4random_uniform(200);// (rand() % 90);
-//  }
-  
-//  particleConstantBuffer = [device newBufferWithLength:kNumParticles * sizeof(Particle) options:MTLResourceOptionCPUCacheModeDefault];
 }
 
 - (void)setUniforms:(matrix_float4x4)perspective view:(matrix_float4x4)view depth:(float)depth {
@@ -204,12 +183,6 @@ double frameTimeStamp = 0;
   CADisplayLink* displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(displayLink:)];
   displayLink.frameInterval = 1;
   [displayLink addToRunLoop:[NSRunLoop mainRunLoop] forMode:NSDefaultRunLoopMode];
-  
-  dispatch_async( dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-    while (true) {
-      
-    }
-  });
 }
 
 - (void)displayLink:(CADisplayLink *)displayLink {
@@ -219,10 +192,10 @@ double frameTimeStamp = 0;
     frameTimeStamp = currentTime;
   }
   
-  float dt = currentTime - frameTimeStamp;
-  frameTimeStamp = currentTime;
+//  float dt = currentTime - frameTimeStamp;
+//  frameTimeStamp = currentTime;
   
-  NSLog(@"%f, %f", dt, displayLink.duration);
+//  NSLog(@"%f, %f", dt, displayLink.duration);
   
 //  float fps = 1.0f / dt;
 //  fpsLabel.text = [NSString stringWithFormat:@"%f fps", fps];
@@ -234,29 +207,8 @@ double frameTimeStamp = 0;
   matrix_float4x4 view = matrix_identity_float4x4;
   view.columns[3].z = 90.0f;
   
-  {
-//    vector_float4 emissionLocationNDC = { (float)emissionLocation.x, (float)emissionLocation.y, 0.9f, 1.0f };
-//    vector_float4 emissionClip = matrix_multiply(matrix_invert(perspective), emissionLocationNDC);
-//    vector_float4 emissionView = emissionClip / emissionClip.w;
-//    vector_float4 emissionWorld = matrix_multiply(matrix_invert(view), emissionView);
-    
-//    NSLog(@"%f %f %f", emissionWorld.x, emissionWorld.y, emissionWorld.z);
-    
-//      vector_float3 emissionWorld = { 0, 0, 0 };
-    //
-    
-    //  NSLog(@"%f %f %f", emissionWorld.x, emissionWorld.y, emissionWorld.z);
-    //  matrix_float4x4 model = {
-    //    .columns[0] = { 1.0f, 0.0f, 0.0f,  0.0f },
-    //    .columns[1] = { 0.0f, 1.0f, 0.0f,  0.0f },
-    //    .columns[2] = { 0.0f, 0.0f, 1.0f,  0.0f },
-    //    .columns[3] = { emissionWorld.x, emissionWorld.y, depth, 1.0f }
-    //  };
-    
-    //  matrix_float4x4 modelView = matrix_multiply(view, model);
-  }
   [self update:0.016f];
-  
+    
   [self setUniforms:perspective view:view depth:900.0f];
   [self render];
 }
@@ -289,6 +241,7 @@ double frameTimeStamp = 0;
 }
 
 - (void)initParticles {
+  
   id<MTLCommandBuffer> commandBuffer = [commandQueue commandBuffer];
   
   id<MTLComputeCommandEncoder> commandEncoder = [commandBuffer computeCommandEncoder];
@@ -296,7 +249,7 @@ double frameTimeStamp = 0;
   [commandEncoder setComputePipelineState:initParticlesComputePipeline];
   [commandEncoder setTexture:particlePosSpeedLifeTexture atIndex:0];
   [commandEncoder setTexture:particleDirTexture atIndex:1];
-  [commandEncoder setTexture:particlePosSpeedLifeTexture atIndex:2];
+  [commandEncoder setTexture:randomTexture atIndex:2];
   
   MTLSize threadsPerGroup = MTLSizeMake(16, 16, 1);
   MTLSize threadgroupCounts = MTLSizeMake(2, 2, 1);
@@ -319,7 +272,9 @@ double frameTimeStamp = 0;
   [commandEncoder setComputePipelineState:simulateParticlesComputePipeline];
   [commandEncoder setTexture:particlePosSpeedLifeTexture atIndex:0];
   [commandEncoder setTexture:particleDirTexture atIndex:1];
-  [commandEncoder setTexture:particlePosSpeedLifeTexture atIndex:2];
+  [commandEncoder setTexture:randomTexture atIndex:2];
+  [commandEncoder setTexture:particlePosSpeedLifeTexture atIndex:3];
+  [commandEncoder setTexture:particleDirTexture atIndex:4];
   
   MTLSize threadsPerGroup = MTLSizeMake(16, 16, 1);
   MTLSize threadgroupCounts = MTLSizeMake(2, 2, 1);
@@ -332,26 +287,6 @@ double frameTimeStamp = 0;
   [commandBuffer commit];
 
   [commandBuffer waitUntilCompleted];
-  
-//  int emissionRate = 1000;
-//  int emissionCount = 0;
-//  for (int i = 0; i < kNumParticles; i++) {
-//    particles[i].position = particles[i].position + particles[i].direction * particles[i].speed * dt;
-//    
-//    particles[i].life -= dt;
-//    if (particles[i].life <= 0.0f) {
-//      particles[i].life = 0.0f;
-//    }
-//    
-//    if (particles[i].life <= 0.0f && emissionCount < emissionRate) {
-//      particles[i].life = arc4random_uniform(200);// (rand() % 8);
-//      particles[i].position = { 0, 0, 0 };
-//      emissionCount++;
-//    }
-//  }
-//  
-//  uint8_t *bufferPointer = (uint8_t *)[particleConstantBuffer contents];
-//  memcpy(bufferPointer, particles, sizeof(Particle) * kNumParticles);
 }
 
 static matrix_float4x4 perspective_fov(const float fovY, const float aspect, const float nearZ, const float farZ) {
